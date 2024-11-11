@@ -1,15 +1,21 @@
 #include <stdio.h>
 #include <pcap.h>
-#include "utils/server_info.h"
+
+#include "utils/exporter_info.h"
 #include "utils/err.h"
 #include "utils/pcap_utils.h"
+
 #include "flow/flow_record.h"
 #include "flow/flow_arr.h"
-#include "packet_handler.h"
+
+#include "handler/packet_handler_info.h"
+#include "handler/packet_handler.h"
+
+#include "server/send.h"
 
 int main(int argc, char** argv) {
     exporter_info info;
-    if (get_info_from_cla(argc, argv, &info) == ERR_PARSE_ARGS) {
+    if (get_exporter_info_from_cla(argc, argv, &info) == ERR_PARSE_ARGS) {
         printf("Usage: ./p2nprobe <host>:<port> <pcap_file_path> [-a <active_timeout> -i <inactive_timeout>]");
         return 1;
     }
@@ -33,13 +39,31 @@ int main(int argc, char** argv) {
         return 4;
     }
     
-    pcap_loop(handler, -1, packet_handler, (unsigned char*) arr);
+    //prepare information for packet handler
+    packet_handler_info handler_info = {.arr = arr, .exporter_info = &info};
+
+    pcap_loop(handler, -1, packet_handler, (unsigned char*) &handler_info);
 
     for (int i = 0; i < arr->size; i++) {
-        printf("%d. Flow - packets: %d, bytes: %d\n", i, arr->flows[i]->packets, arr->flows[i]->octets);
+        printf("%d. Flow - packets: %d, bytes: %d", i, arr->flows[i]->packets, arr->flows[i]->octets);
+        printf(" First SysUptime: %u, Last SysUptime: %u\n", arr->flows[i]->fpacket_systime, arr->flows[i]->lpacket_systime);
     }
 
+    error send_res = send_netflow(&handler_info);
+
+    //free all the memory, and set exit code
     delete_flow_array(arr);
     pcap_close(handler);
+
+    if (send_res == ERR_SOCKET_CREATION) {
+        fprintf(stderr, "Can't create socket\n");
+        return 5;
+    }
+
+    if (send_res == ERR_SEND) {
+        fprintf(stderr, "Can't send to address\n");
+        return 6;
+    }
+
     return 0;
 }
