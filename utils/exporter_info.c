@@ -1,10 +1,11 @@
-#include "server_info.h"
+#include "exporter_info.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <bits/getopt_core.h>
+#include <time.h>
 
 error parse_port(const char* str, int* value) {
     char *endptr;
@@ -25,9 +26,11 @@ error parse_port(const char* str, int* value) {
     return SUCC;
 }
 
-error get_info_from_cla(int argc, char** argv, exporter_info* info) {
+error get_exporter_info_from_cla(int argc, char** argv, exporter_info* info) {
     if (argc < 3 || argc > 7) 
         return ERR_PARSE_ARGS;
+
+    uint32_t sys_start_time = (uint32_t)time(NULL);
 
     char* host_port = argv[1];
     char* host = strtok(host_port, ":");
@@ -73,6 +76,7 @@ error get_info_from_cla(int argc, char** argv, exporter_info* info) {
     info->pcap_file = pcap_file_path;
     info->active_timeout = active_timeout;
     info->inactive_timeout = inactive_timeout;
+    info->sys_start_time = sys_start_time;
 
     return SUCC;
 }
