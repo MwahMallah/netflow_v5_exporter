@@ -14,5 +14,7 @@ The `p2nprobe` program extracts network flow information from a PCAP file and ex
 
 ## Compilation and Execution
 in the project directory run `Makefile` and execute `p2nprobe`:
-    - make
-    - ./p2nprobe 127.0.0.1:12345 pcap-example.pcap -a 15 -i 20 
+  ```
+    make
+    ./p2nprobe 127.0.0.1:12345 [pcap-example].pcap -a 5 -i 5 
+  ```
