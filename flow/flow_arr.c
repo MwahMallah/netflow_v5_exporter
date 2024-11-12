@@ -45,19 +45,26 @@ void delete_flow_array(flow_arr* array) {
     }
 }
 
-int is_flow_found(flow_record* flow, int ip_src, int ip_dst) {
-    return flow->ip_src == ip_src && flow->ip_dst == ip_dst;
+int is_flow_found(flow_record* flow, flow_record_filter* filter) {
+    int is_atimeout_expired = (filter->systime - ntohl(flow->fpacket_systime)) > filter->atimeout;
+    int is_itimeout_expired = (filter->systime - ntohl(flow->lpacket_systime)) > filter->itimeout;
+
+    return !is_atimeout_expired && !is_itimeout_expired 
+            && flow->ip_src == filter->ip_src && flow->ip_dst == filter->ip_dst
+            && flow->port_src == filter->port_src && flow->port_dst == filter->port_dst;
 }
 
-
-flow_record* find_or_create_flow(flow_arr* arr, int ip_src, int ip_dst, int port_src, int port_dst) {
-    for (int i = 0; i < arr->size; i++) {
-        if (is_flow_found(arr->flows[i], ip_src, ip_dst)) {
+flow_record* find_or_create_flow(flow_arr* arr, flow_record_filter* filter) {
+    //search from the end to find last entry (the one with needed time) with given ip/port pairs
+    for (int i = arr->size - 1; i >= 0; i--) {
+        if (is_flow_found(arr->flows[i], filter)) {
             return arr->flows[i];
         }
     }
 
-    flow_record* new_flow = create_flow(ip_src, ip_dst, port_src, port_dst);
+    flow_record* new_flow = create_flow(filter->ip_src, filter->ip_dst, 
+                                        filter->port_src, filter->port_dst,
+                                        filter->systime);
     if (!new_flow)
         return NULL;
 

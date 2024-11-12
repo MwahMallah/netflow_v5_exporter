@@ -1,7 +1,11 @@
 #include "flow_record.h"
 #include <stdlib.h>
 
-flow_record* create_flow(int ip_src, int ip_dst, int port_src, int port_dst) {
+#include <arpa/inet.h>
+#include <netinet/ip.h>
+
+
+flow_record* create_flow(int ip_src, int ip_dst, int port_src, int port_dst, unsigned long systime) {
     flow_record* new_flow = malloc(sizeof(flow_record));
     if (new_flow == NULL) {
         return NULL; 
@@ -16,7 +20,7 @@ flow_record* create_flow(int ip_src, int ip_dst, int port_src, int port_dst) {
     new_flow->output   = 0;        // Default SNMP index of output interface
     new_flow->packets  = 0;        // Initial value for packets amount
     new_flow->octets   = 0;        // Initial value for octets amount
-    new_flow->fpacket_systime = -1;    // SysUptime at the first packet (set to -1 to mark not set)
+    new_flow->fpacket_systime = htonl(systime);    // SysUptime at the first packet (set to -1 to mark not set)
     new_flow->lpacket_systime  = 0;     // SysUptime at the last packet
     new_flow->pad1     = 0;        // Padding byte
     new_flow->tcp_flags= 0;       // TCP flags

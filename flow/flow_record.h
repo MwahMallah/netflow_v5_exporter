@@ -29,6 +29,6 @@ typedef struct {
 } flow_record;
 
 //Create new flow
-flow_record* create_flow(int ip_src, int ip_dst, int port_src, int port_dst);
+flow_record* create_flow(int ip_src, int ip_dst, int port_src, int port_dst, unsigned long systime);
 
 #endif
