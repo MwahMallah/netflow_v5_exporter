@@ -44,10 +44,12 @@ int main(int argc, char** argv) {
 
     pcap_loop(handler, -1, packet_handler, (unsigned char*) &handler_info);
 
+    #ifdef DEBUG
     for (int i = 0; i < arr->size; i++) {
         printf("%d. Flow - packets: %d, bytes: %d", i, arr->flows[i]->packets, arr->flows[i]->octets);
         printf(" First SysUptime: %u, Last SysUptime: %u\n", arr->flows[i]->fpacket_systime, arr->flows[i]->lpacket_systime);
     }
+    #endif
 
     error send_res = send_netflow(&handler_info);
 
