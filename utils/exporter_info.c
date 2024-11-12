@@ -74,8 +74,8 @@ error get_exporter_info_from_cla(int argc, char** argv, exporter_info* info) {
     info->host = host;
     info->port = port;
     info->pcap_file = pcap_file_path;
-    info->active_timeout = active_timeout;
-    info->inactive_timeout = inactive_timeout;
+    info->active_timeout = active_timeout * 1000; //in_ms
+    info->inactive_timeout = inactive_timeout * 1000; //in_ms
     info->sys_start_time = sys_start_time;
 
     return SUCC;

@@ -15,7 +15,9 @@
 
 void fill_netflow_header(netflow_header* header);
 void set_server_addr(struct sockaddr_in* addr, exporter_info* info);
-error send_netflow_msg(int fd, struct sockaddr_in* server_addr, char* msg, int len);
+error send_netflow_msg(int fd, struct sockaddr_in* server_addr, const char* msg, int len);
+void add_flow_to_msg(flow_record* flow, char* pos);
+void add_header_to_msg(netflow_header* header, char* pos);
 
 error send_netflow(packet_handler_info* handler_info) {
     //create udp socket and address
@@ -32,28 +34,29 @@ error send_netflow(packet_handler_info* handler_info) {
     fill_netflow_header(&header);
 
     char netflow_msg[sizeof(netflow_header) + MAX_FLOWS * sizeof(flow_record)];
-    char* current_pos = (netflow_msg + sizeof(netflow_header));
+    char* current_msg_pos = (netflow_msg + sizeof(netflow_header));
 
     for (int i = 0; i < flow_arr->size; i++) {
         header.flows++;
-        flow_record* flow = flow_arr->flows[i];
-        flow->octets  = htonl(flow->octets);
-        flow->packets = htonl(flow->packets);
-        //push new flow record to netflow message
-        memcpy(current_pos, flow, sizeof(flow_record));        
+        add_flow_to_msg(flow_arr->flows[i], current_msg_pos);
         //update to new position in a message
-        current_pos += sizeof(flow_record);
-    }
-    //prepare flows to be in network byte order
-    header.flows = htons(header.flows);
-    //push header at the beginning of the netflow_msg
-    memcpy(netflow_msg, &header, sizeof(header));
+        current_msg_pos += sizeof(flow_record);
 
-    int msg_len = current_pos - netflow_msg; //length of the message
-    if (send_netflow_msg(sockfd, &server_addr, netflow_msg, msg_len) == ERR_SEND) {
-        perror("send");
-        close(sockfd);
-        return ERR_SEND;
+        if (header.flows == MAX_FLOWS) {
+            add_header_to_msg(&header, netflow_msg);
+            int msg_len = current_msg_pos - netflow_msg; //length of the message
+            send_netflow_msg(sockfd, &server_addr, netflow_msg, msg_len);
+            fill_netflow_header(&header); //set new header
+            memset(netflow_msg, 0, sizeof(netflow_msg)); //set new netflow_msg
+            current_msg_pos = (netflow_msg + sizeof(netflow_header));
+        }
+    }
+
+    //send all left flows
+    if (header.flows != 0) {
+        add_header_to_msg(&header, netflow_msg);
+        int msg_len = current_msg_pos - netflow_msg; //length of the message
+        send_netflow_msg(sockfd, &server_addr, netflow_msg, msg_len);
     }
     
     close(sockfd);
@@ -88,10 +91,24 @@ void fill_netflow_header(netflow_header* header) {
     header->sampling_interval = htons(0);
 }
 
-error send_netflow_msg(int fd, struct sockaddr_in* server_addr, char* msg, int len) {
+error send_netflow_msg(int fd, struct sockaddr_in* server_addr, const char* msg, int len) {
      if (sendto(fd, msg, len, 0, (struct sockaddr*)server_addr, sizeof(*server_addr)) < 0) {
         return ERR_SEND;
      }
      
      return SUCC;
+}
+
+void add_flow_to_msg(flow_record* flow, char* pos) {
+    flow->octets  = htonl(flow->octets);
+    flow->packets = htonl(flow->packets);
+    //push new flow record to netflow message
+    memcpy(pos, flow, sizeof(flow_record));  
+}
+
+void add_header_to_msg(netflow_header* header, char* pos) {
+    //prepare flows to be in network byte order
+    header->flows = htons(header->flows);
+    //push header at the beginning of the netflow_msg
+    memcpy(pos, header, sizeof(*header));
 }
